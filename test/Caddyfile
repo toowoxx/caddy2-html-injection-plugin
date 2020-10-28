@@ -1,0 +1,14 @@
+{
+    debug
+    order injection first
+}
+
+http://localhost:2015 {
+    injection {
+        content_type .*/html
+        inject test/inject.js
+        before "</body>"
+    }
+    root * test/
+    file_server
+}

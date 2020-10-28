@@ -1,6 +1,5 @@
-# caddy2-filter
+# caddy2-filter (modified for injection)
 
-[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![GoDoc](http://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/gopkg.in/sjtug/caddy2-filter)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sjtug/caddy2-filter)](https://goreportcard.com/report/github.com/sjtug/caddy2-filter)
 
@@ -18,18 +17,16 @@ Caddyfile:
 	order filter after encode
 }
 
-filter {
-    # Only process URL matching this regex
-    path <optional, regexp pattern, default: .*>
-    # Don't process response body larger than this size
-    max_size <optional, int, default: 2097152>
-    search_pattern <regexp pattern>
-    replacement <replacement string>
+injection {
+    # File to inject as inline text
+    inject <file to inject>
+    # Where to inject
+    before "</body>"
     # Only process content_type matching this regex
     content_type <regexp pattern>
 }
 
-# If you are using reverse_proxy, add this to its config to ensure
+# If you are using reverse_proxy, you may need to add this to its config to ensure
 # reverse_proxy returns uncompressed body:
 
 header_up -Accept-Encoding
@@ -38,11 +35,10 @@ header_up -Accept-Encoding
 JSON config (under `apps › http › servers › routes › handle`)
 ```
 {
-    "handler": "filter",
-    "max_size": <int>,
+    "handler": "injection",
     "path": "<regexp>",
-    "search_pattern": "<regexp>",
-    "replacement: "<string>",
+    "inject": "<file>",
+    "before": "<suffix>",
     "content_type": "<regexp>"
 }
 ```
