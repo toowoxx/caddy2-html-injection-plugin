@@ -25,8 +25,8 @@ func init() {
 type Middleware struct {
 	// Regex to specify which kind of response should we filter
 	ContentType string `json:"content_type"`
-	Inject string `json:"inject"`
-	Before string `json:"before"`
+	Inject      string `json:"inject"`
+	Before      string `json:"before"`
 
 	compiledContentTypeRegex *regexp.Regexp
 
@@ -68,13 +68,13 @@ const (
 )
 
 type InjectedWriter struct {
-	originalWriter http.ResponseWriter
-	request *http.Request
-	recordedHtml bytes.Buffer
+	originalWriter    http.ResponseWriter
+	request           *http.Request
+	recordedHtml      bytes.Buffer
 	totalBytesWritten int
-	logger *zap.Logger
+	logger            *zap.Logger
 	contentTypeStatus ContentTypeStatus
-	m *Middleware
+	m                 *Middleware
 }
 
 func (i InjectedWriter) Header() http.Header {
@@ -99,7 +99,7 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 		}
 		lines := strings.Split(recordedString, "\n")
 		for index, line := range lines {
-			if !isLastLineComplete && index == len(lines) - 1 {
+			if !isLastLineComplete && index == len(lines)-1 {
 				// Write the incomplete line back into the buffer
 				i.recordedHtml.WriteString(line)
 				break
@@ -139,7 +139,7 @@ func (i *InjectedWriter) handleLine(line string) (string, error) {
 		if err != nil {
 			return line, nil
 		}
-		return strings.Replace(line, i.m.Before, textToInject + i.m.Before, 1), nil
+		return strings.Replace(line, i.m.Before, textToInject+i.m.Before, 1), nil
 	}
 	return line, nil
 }
@@ -168,14 +168,13 @@ func (i InjectedWriter) WriteHeader(statusCode int) {
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	m.logger.Info("New request")
 	r.Header.Set("Accept-Encoding", "identity")
 	injectedWriter := &InjectedWriter{
 		originalWriter: w,
 		request:        r,
 		recordedHtml:   bytes.Buffer{},
 		logger:         m.logger,
-		m: &m,
+		m:              &m,
 	}
 	err := next.ServeHTTP(injectedWriter, r)
 	if err != nil {
