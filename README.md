@@ -16,7 +16,7 @@ Caddyfile:
 ```
 # Add this block in top-level settings:
 {
-	order filter after encode
+	order injection after encode
 }
 
 injection {
