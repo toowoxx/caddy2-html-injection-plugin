@@ -20,6 +20,7 @@ require (
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/miekg/dns v1.1.35 // indirect
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.8.0 // indirect
 	github.com/smallstep/certificates v0.15.5 // indirect
 	github.com/smallstep/nosql v0.3.2 // indirect

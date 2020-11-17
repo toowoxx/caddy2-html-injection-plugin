@@ -89,10 +89,11 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 		i.contentTypeStatus = noMatch
 		return i.originalWriter.Write(bytes)
 	}
+	i.contentTypeStatus = matches
 	i.recordedHtml.Write(bytes)
 	recordedString := i.recordedHtml.String()
-	i.recordedHtml.Truncate(0)
 	if strings.ContainsRune(recordedString, '\n') {
+		i.recordedHtml.Truncate(0)
 		isLastLineComplete := false
 		if strings.HasSuffix(recordedString, "\n") {
 			isLastLineComplete = true
@@ -175,6 +176,9 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 		recordedHtml:   bytes.Buffer{},
 		logger:         m.logger,
 		m:              &m,
+	}
+	if len(m.ContentType) == 0 {
+		injectedWriter.contentTypeStatus = matches
 	}
 	err := next.ServeHTTP(injectedWriter, r)
 	if err != nil {
