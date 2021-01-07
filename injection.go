@@ -184,7 +184,8 @@ func (i *InjectedWriter) HandleCSP() error {
 func (i *InjectedWriter) transformCSP(csp string) string {
 	defaultSrc := extractValueForDirective(csp, "default-src")
 	if len(defaultSrc) == 0 {
-		defaultSrc = "'self' https: 'unsafe-eval' 'unsafe-inline' 'unsafe-hashes'"
+		// add back 'unsafe-hashes' when appropriate
+		defaultSrc = "'self' https: data: blob: 'unsafe-eval' 'unsafe-inline'"
 		csp = fmt.Sprintf("default-src %s; %s", defaultSrc, csp)
 	}
 	cspSrcArg := fmt.Sprintf("'nonce-%s' 'unsafe-inline'", i.cspNonce)
@@ -235,6 +236,7 @@ const metaTag = "<meta "
 const httpEquivPrefix = "http-equiv=\""
 const metaCSPPrefix = httpEquivPrefix+"content-security-policy\""
 const contentPrefix = "content=\""
+const metaEnd = "</meta>"
 func (i *InjectedWriter) handleCSPForLine(line string) string {
 	if len(i.cspNonce) == 0 {
 		return line
@@ -253,12 +255,16 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 		i.Logger.Debug("Found CSP in HTML, replacing it")
 		fullTagToEnd := line[httpEquivIndex:]
 		endIndex := strings.Index(fullTagToEnd, "/>")
+		endSuffixLen := 2
 		if endIndex == -1 {
-			endIndex = strings.Index(fullTagToEnd, "</meta>")
+			endIndex = strings.Index(fullTagToEnd, metaEnd)
+			endSuffixLen = len(metaEnd)
 			if endIndex == -1 {
 				endIndex = strings.Index(fullTagToEnd, ">")
+				endSuffixLen = 1
 				if endIndex == -1 {
 					endIndex = len(fullTagToEnd)-1
+					endSuffixLen = 0
 				}
 			}
 		}
@@ -277,16 +283,20 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 		if len(contentAttrValue) == 0 {
 			return line
 		}
-		goodCsp := ""
 		if strings.Contains(contentAttrValue, "default-src") {
 			// Otherwise we could run into issues.
 			// We'll remove the tag entirely if it doesn't have default-src.
 			// The one in the header will still be transformed.
-			goodCsp = i.transformCSP(contentAttrValue)
+			goodCsp := i.transformCSP(contentAttrValue)
+			newTag := fmt.Sprintf("http-equiv=\"content-security-policy\" content=\"%s\" ", goodCsp)
+			i.Logger.Debug("Replaced CSP in HTML")
+			return strings.Replace(line, fullTag, newTag, 1)
+		} else {
+			fullTagEndToEnd :=
+			 	line[strings.LastIndex(line[:httpEquivIndex], metaTag):endIndex+endSuffixLen-1+len(httpEquivPrefix)-1]
+			return strings.Replace(line, fullTagEndToEnd, "", 1)
 		}
-		newTag := fmt.Sprintf("http-equiv=\"content-security-policy\" content=\"%s\" ", goodCsp)
-		i.Logger.Debug("Replaced CSP in HTML")
-		return strings.Replace(line, fullTag, newTag, 1)
+
 	}
 	if closingHeadIndex != -1 {
 		i.hasSeenClosingHead = true
