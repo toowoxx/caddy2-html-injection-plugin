@@ -178,7 +178,7 @@ func (i *InjectedWriter) HandleCSP() error {
 		}
 		cspSrcArg := fmt.Sprintf("'nonce-%s'", i.cspNonce)
 		if !strings.Contains(
-			extractValueForDirective(csp, "script-src"),
+			extractValueForDirective(csp, "script-src") + defaultSrc,
 			"'unsafe-inline'",
 		) {
 			if strings.Contains(csp, "script-src ") {
@@ -189,7 +189,7 @@ func (i *InjectedWriter) HandleCSP() error {
 			}
 		}
 		if !strings.Contains(
-			extractValueForDirective(csp, "style-src"),
+			extractValueForDirective(csp, "style-src") + defaultSrc,
 			"'unsafe-inline'",
 		) {
 			if strings.Contains(csp, "style-src ") {
