@@ -72,36 +72,36 @@ type LineHandler interface {
 }
 
 type InjectedWriter struct {
-	originalWriter    http.ResponseWriter
-	request           *http.Request
-	recordedHtml      bytes.Buffer
+	OriginalWriter    http.ResponseWriter
+	Request           *http.Request
+	RecordedHTML      bytes.Buffer
 	totalBytesWritten int
-	logger            *zap.Logger
+	Logger            *zap.Logger
 	contentTypeStatus ContentTypeStatus
-	lineHandler		  LineHandler
-	m                 *Middleware
+	LineHandler       LineHandler
+	M                 *Middleware
 }
 
 func (i InjectedWriter) Header() http.Header {
-	return i.originalWriter.Header()
+	return i.OriginalWriter.Header()
 }
 
 func (i *InjectedWriter) Write(bytes []byte) (int, error) {
-	if i.lineHandler == nil {
-		i.lineHandler = i
+	if i.LineHandler == nil {
+		i.LineHandler = i
 	}
 	if i.contentTypeStatus == noMatch {
-		return i.originalWriter.Write(bytes)
-	} else if i.contentTypeStatus == toBeChecked && !i.m.compiledContentTypeRegex.MatchString(
-		strings.Split(i.originalWriter.Header().Get("Content-Type"), ";")[0]) {
+		return i.OriginalWriter.Write(bytes)
+	} else if i.contentTypeStatus == toBeChecked && !i.M.compiledContentTypeRegex.MatchString(
+		strings.Split(i.OriginalWriter.Header().Get("Content-Type"), ";")[0]) {
 		i.contentTypeStatus = noMatch
-		return i.originalWriter.Write(bytes)
+		return i.OriginalWriter.Write(bytes)
 	}
 	i.contentTypeStatus = matches
-	i.recordedHtml.Write(bytes)
-	recordedString := i.recordedHtml.String()
+	i.RecordedHTML.Write(bytes)
+	recordedString := i.RecordedHTML.String()
 	if strings.ContainsRune(recordedString, '\n') {
-		i.recordedHtml.Truncate(0)
+		i.RecordedHTML.Truncate(0)
 		isLastLineComplete := false
 		if strings.HasSuffix(recordedString, "\n") {
 			isLastLineComplete = true
@@ -110,16 +110,16 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 		for index, line := range lines {
 			if !isLastLineComplete && index == len(lines)-1 {
 				// Write the incomplete line back into the buffer
-				i.recordedHtml.WriteString(line)
+				i.RecordedHTML.WriteString(line)
 				break
 			}
-			newString, err := i.lineHandler.handleLine(line)
+			newString, err := i.LineHandler.handleLine(line)
 			if err != nil {
 				return 0, err
 			}
 			newString += "\n"
 			newBytes := []byte(newString)
-			bytesWritten, err := i.originalWriter.Write(newBytes)
+			bytesWritten, err := i.OriginalWriter.Write(newBytes)
 			if err != nil {
 				return 0, errors.Wrap(err, "error occurred while writing out response bytes")
 			}
@@ -133,9 +133,9 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 }
 
 func (i *InjectedWriter) textToInject() (string, error) {
-	content, err := ioutil.ReadFile(i.m.Inject)
+	content, err := ioutil.ReadFile(i.M.Inject)
 	if err != nil {
-		i.logger.Warn("Could not read file to inject!", zap.Error(err))
+		i.Logger.Warn("Could not read file to inject!", zap.Error(err))
 		return "", err
 	}
 	contentString := string(content)
@@ -143,25 +143,25 @@ func (i *InjectedWriter) textToInject() (string, error) {
 }
 
 func (i *InjectedWriter) handleLine(line string) (string, error) {
-	if strings.Contains(line, i.m.Before) {
+	if strings.Contains(line, i.M.Before) {
 		textToInject, err := i.textToInject()
 		if err != nil {
 			return line, nil
 		}
-		return strings.Replace(line, i.m.Before, textToInject+i.m.Before, 1), nil
+		return strings.Replace(line, i.M.Before, textToInject+i.M.Before, 1), nil
 	}
 	return line, nil
 }
 
 func (i *InjectedWriter) flush() error {
 	var err error
-	finalString := i.recordedHtml.String()
+	finalString := i.RecordedHTML.String()
 	if len(finalString) > 0 {
 		finalString, err = i.handleLine(finalString)
 		if err != nil {
 			return err
 		}
-		n, err := i.originalWriter.Write([]byte(finalString))
+		n, err := i.OriginalWriter.Write([]byte(finalString))
 		if err != nil {
 			return err
 		}
@@ -171,19 +171,19 @@ func (i *InjectedWriter) flush() error {
 }
 
 func (i InjectedWriter) WriteHeader(statusCode int) {
-	i.originalWriter.Header().Del("Content-Length")
-	i.originalWriter.WriteHeader(statusCode)
+	i.OriginalWriter.Header().Del("Content-Length")
+	i.OriginalWriter.WriteHeader(statusCode)
 }
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	r.Header.Set("Accept-Encoding", "identity")
 	injectedWriter := &InjectedWriter{
-		originalWriter: w,
-		request:        r,
-		recordedHtml:   bytes.Buffer{},
-		logger:         m.logger,
-		m:              &m,
+		OriginalWriter: w,
+		Request:        r,
+		RecordedHTML:   bytes.Buffer{},
+		Logger:         m.logger,
+		M:              &m,
 	}
 	if len(m.ContentType) == 0 {
 		injectedWriter.contentTypeStatus = matches
