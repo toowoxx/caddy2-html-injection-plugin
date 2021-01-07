@@ -163,7 +163,19 @@ func (i *InjectedWriter) HandleCSP() error {
 		if err != nil {
 			return err
 		}
-		csp += fmt.Sprintf("; script-src 'nonce-%s'", i.cspNonce)
+		cspSrcArg := fmt.Sprintf("'nonce-%s'", i.cspNonce)
+		if strings.Contains(csp, "script-src ") {
+			// we need to add a source instead of adding the entire directive
+			csp = strings.Replace(csp, "script-src ", fmt.Sprintf("script-src %s ", cspSrcArg), 1)
+		} else {
+			csp += "; script-src " + cspSrcArg
+		}
+		if strings.Contains(csp, "style-src ") {
+			// we need to add a source instead of adding the entire directive
+			csp = strings.Replace(csp, "style-src ", fmt.Sprintf("style-src %s ", cspSrcArg), 1)
+		} else {
+			csp += "; style-src " + cspSrcArg
+		}
 		i.OriginalWriter.Header().Set("Content-Security-Policy", csp)
 	}
 
