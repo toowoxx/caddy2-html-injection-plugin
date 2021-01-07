@@ -80,6 +80,7 @@ type InjectedWriter struct {
 	contentTypeStatus ContentTypeStatus
 	LineHandler       LineHandler
 	cspNonce		  string
+	hasSeenClosingHead bool
 	M                 *Middleware
 }
 
@@ -114,7 +115,7 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 				i.RecordedHTML.WriteString(line)
 				break
 			}
-			newString, err := i.LineHandler.HandleLine(line)
+			newString, err := i.LineHandler.HandleLine(i.handleCSPForLine(line))
 			if err != nil {
 				return 0, err
 			}
@@ -174,63 +175,124 @@ func (i *InjectedWriter) HandleCSP() error {
 		if err != nil {
 			return err
 		}
-		defaultSrc := extractValueForDirective(csp, "default-src")
-		if len(defaultSrc) == 0 {
-			defaultSrc = "'self' https: 'unsafe-eval' 'unsafe-inline' 'unsafe-hashes'"
-			csp = fmt.Sprintf("default-src %s; %s", defaultSrc, csp)
-		}
-		cspSrcArg := fmt.Sprintf("'nonce-%s' 'unsafe-inline'", i.cspNonce)
-		if strings.Contains(csp, "script-src ") {
-			if !strings.Contains(
-				extractValueForDirective(csp, "script-src"),
-				"'unsafe-inline'",
-			) {
-				// we need to add a source instead of adding the entire directive
-				csp = strings.Replace(csp, "script-src ", fmt.Sprintf("script-src %s ", cspSrcArg), 1)
-			}
-		} else {
-			cspSrcArgFinal := cspSrcArg
-			if strings.Contains(defaultSrc, "'unsafe-inline'") {
-				// Skip nonce if unsafe-inline otherwise it will be disabled
-				cspSrcArgFinal = ""
-			}
-			csp += fmt.Sprintf("; script-src %s %s", defaultSrc, cspSrcArgFinal)
-		}
-		if strings.Contains(csp, "style-src ") {
-			if !strings.Contains(
-				extractValueForDirective(csp, "style-src"),
-				"'unsafe-inline'",
-			) {
-				// we need to add a source instead of adding the entire directive
-				csp = strings.Replace(csp, "style-src ", fmt.Sprintf("style-src %s ", cspSrcArg), 1)
-			}
-		} else {
-			cspSrcArgFinal := cspSrcArg
-			if strings.Contains(defaultSrc, "'unsafe-inline'") {
-				// Skip nonce if unsafe-inline otherwise it will be disabled
-				cspSrcArgFinal = ""
-			}
-			csp += fmt.Sprintf("; style-src %s %s", defaultSrc, cspSrcArgFinal)
-		}
-		i.OriginalWriter.Header().Set("Content-Security-Policy", csp)
+		i.OriginalWriter.Header().Set("Content-Security-Policy", i.transformCSP(csp))
 	}
 
 	return nil
 }
 
-func (i *InjectedWriter) HandleCSPForText(line string) string {
+func (i *InjectedWriter) transformCSP(csp string) string {
+	defaultSrc := extractValueForDirective(csp, "default-src")
+	if len(defaultSrc) == 0 {
+		defaultSrc = "'self' https: 'unsafe-eval' 'unsafe-inline' 'unsafe-hashes'"
+		csp = fmt.Sprintf("default-src %s; %s", defaultSrc, csp)
+	}
+	cspSrcArg := fmt.Sprintf("'nonce-%s' 'unsafe-inline'", i.cspNonce)
+	if strings.Contains(csp, "script-src ") {
+		if !strings.Contains(
+			extractValueForDirective(csp, "script-src"),
+			"'unsafe-inline'",
+		) {
+			// we need to add a source instead of adding the entire directive
+			csp = strings.Replace(csp, "script-src ", fmt.Sprintf("script-src %s ", cspSrcArg), 1)
+		}
+	} else {
+		cspSrcArgFinal := cspSrcArg
+		if strings.Contains(defaultSrc, "'unsafe-inline'") {
+			// Skip nonce if unsafe-inline otherwise it will be disabled
+			cspSrcArgFinal = ""
+		}
+		csp += fmt.Sprintf("; script-src %s %s", defaultSrc, cspSrcArgFinal)
+	}
+	if strings.Contains(csp, "style-src ") {
+		if !strings.Contains(
+			extractValueForDirective(csp, "style-src"),
+			"'unsafe-inline'",
+		) {
+			// we need to add a source instead of adding the entire directive
+			csp = strings.Replace(csp, "style-src ", fmt.Sprintf("style-src %s ", cspSrcArg), 1)
+		}
+	} else {
+		cspSrcArgFinal := cspSrcArg
+		if strings.Contains(defaultSrc, "'unsafe-inline'") {
+			// Skip nonce if unsafe-inline otherwise it will be disabled
+			cspSrcArgFinal = ""
+		}
+		csp += fmt.Sprintf("; style-src %s %s", defaultSrc, cspSrcArgFinal)
+	}
+	return csp
+}
+
+func (i *InjectedWriter) HandleCSPForText(text string) string {
 	if len(i.cspNonce) == 0 {
 		// Remove nonce attributes since CSP is not active
-		return strings.ReplaceAll(line, " nonce=\"{{csp-nonce}}\"", "")
+		return strings.ReplaceAll(text, " nonce=\"{{csp-nonce}}\"", "")
 	}
-	return strings.ReplaceAll(line, "{{csp-nonce}}", i.cspNonce)
+	return strings.ReplaceAll(text, "{{csp-nonce}}", i.cspNonce)
+}
+
+const metaTag = "<meta "
+const httpEquivPrefix = "http-equiv=\""
+const metaCSPPrefix = httpEquivPrefix+"content-security-policy\""
+const contentPrefix = "content=\""
+func (i *InjectedWriter) handleCSPForLine(line string) string {
+	if len(i.cspNonce) == 0 {
+		return line
+	}
+	if i.hasSeenClosingHead {
+		return line
+	}
+	lowerLine := strings.ToLower(line)
+	httpEquivIndex := strings.Index(lowerLine, metaCSPPrefix)
+	closingHeadIndex := strings.Index(lowerLine, "</head>")
+	if httpEquivIndex > closingHeadIndex && closingHeadIndex != -1 {
+		i.hasSeenClosingHead = true
+		return line
+	}
+	if httpEquivIndex >= len(metaTag) {
+		i.Logger.Debug("Found CSP in HTML, replacing it")
+		fullTagToEnd := line[httpEquivIndex:]
+		endIndex := strings.Index(fullTagToEnd, "/>")
+		if endIndex == -1 {
+			endIndex = strings.Index(fullTagToEnd, "</meta>")
+			if endIndex == -1 {
+				endIndex = strings.Index(fullTagToEnd, ">")
+				if endIndex == -1 {
+					endIndex = len(fullTagToEnd)-1
+				}
+			}
+		}
+		fullTag := fullTagToEnd[:endIndex]
+
+		fullContentAttrStartIndex := strings.Index(fullTag, contentPrefix)
+		if fullContentAttrStartIndex == -1 {
+			return line
+		}
+		contentAttrToEnd := fullTag[fullContentAttrStartIndex+len(contentPrefix):]
+		contentAttrEndIndex := strings.Index(contentAttrToEnd, "\"")
+		if contentAttrEndIndex == -1 {
+			return line
+		}
+		contentAttrValue := contentAttrToEnd[:contentAttrEndIndex]
+		if len(contentAttrValue) == 0 {
+			return line
+		}
+		goodCsp := i.transformCSP(contentAttrValue)
+		newTag := fmt.Sprintf("http-equiv=\"content-security-policy\" content=\"%s\" ", goodCsp)
+		i.Logger.Debug("Replaced CSP in HTML")
+		return strings.Replace(line, fullTag, newTag, 1)
+	}
+	if closingHeadIndex != -1 {
+		i.hasSeenClosingHead = true
+	}
+	return line
 }
 
 func (i *InjectedWriter) Flush() error {
 	var err error
 	finalString := i.RecordedHTML.String()
 	if len(finalString) > 0 {
-		finalString, err = i.LineHandler.HandleLine(finalString)
+		finalString, err = i.LineHandler.HandleLine(i.handleCSPForLine(finalString))
 		if err != nil {
 			return err
 		}
