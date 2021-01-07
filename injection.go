@@ -277,7 +277,13 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 		if len(contentAttrValue) == 0 {
 			return line
 		}
-		goodCsp := i.transformCSP(contentAttrValue)
+		goodCsp := ""
+		if strings.Contains(contentAttrValue, "default-src") {
+			// Otherwise we could run into issues.
+			// We'll remove the tag entirely if it doesn't have default-src.
+			// The one in the header will still be transformed.
+			goodCsp = i.transformCSP(contentAttrValue)
+		}
 		newTag := fmt.Sprintf("http-equiv=\"content-security-policy\" content=\"%s\" ", goodCsp)
 		i.Logger.Debug("Replaced CSP in HTML")
 		return strings.Replace(line, fullTag, newTag, 1)
