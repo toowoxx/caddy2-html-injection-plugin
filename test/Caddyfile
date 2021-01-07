@@ -4,7 +4,7 @@
 }
 
 http://localhost:2015 {
-    header Content-Security-Policy "default-src https:; object-src 'none'"
+    header Content-Security-Policy "default-src https:; script-src 'unsafe-inline'; object-src 'none'"
     injection {
         content_type .*/html
         inject test/inject.js
