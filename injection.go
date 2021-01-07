@@ -295,7 +295,7 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 			goto end
 		} else {
 			fullTagEndToEnd :=
-			 	line[strings.LastIndex(line[:httpEquivIndex], metaTag):endIndex+endSuffixLen-1+len(httpEquivPrefix)-1]
+			 	line[strings.LastIndex(line[:httpEquivIndex+1], metaTag):endIndex+httpEquivIndex+endSuffixLen]
 			lineToReturn = strings.Replace(line, fullTagEndToEnd, "", 1)
 			i.Logger.Debug("Removing CSP entirely")
 			goto end
