@@ -134,6 +134,9 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 }
 
 func (i *InjectedWriter) textToInject() (string, error) {
+	if len(i.M.Inject) == 0 {
+		return "", nil
+	}
 	content, err := ioutil.ReadFile(i.M.Inject)
 	if err != nil {
 		i.Logger.Warn("Could not read file to inject!", zap.Error(err))
@@ -217,7 +220,7 @@ func (i *InjectedWriter) Flush() error {
 	var err error
 	finalString := i.RecordedHTML.String()
 	if len(finalString) > 0 {
-		finalString, err = i.HandleLine(finalString)
+		finalString, err = i.LineHandler.HandleLine(finalString)
 		if err != nil {
 			return err
 		}
