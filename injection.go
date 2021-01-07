@@ -30,7 +30,7 @@ type Middleware struct {
 
 	compiledContentTypeRegex *regexp.Regexp
 
-	logger *zap.Logger
+	Logger *zap.Logger
 }
 
 // CaddyModule returns the Caddy module information.
@@ -43,8 +43,8 @@ func (Middleware) CaddyModule() caddy.ModuleInfo {
 
 // Provision implements caddy.Provisioner.
 func (m *Middleware) Provision(ctx caddy.Context) error {
-	m.logger = ctx.Logger(m)
-	m.logger.Info("Provisioning injection plugin",
+	m.Logger = ctx.Logger(m)
+	m.Logger.Info("Provisioning injection plugin",
 		zap.String("ContentType", m.ContentType),
 		zap.String("Inject", m.Inject))
 	return nil
@@ -175,19 +175,26 @@ func (i InjectedWriter) WriteHeader(statusCode int) {
 	i.OriginalWriter.WriteHeader(statusCode)
 }
 
-// ServeHTTP implements caddyhttp.MiddlewareHandler.
-func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	r.Header.Set("Accept-Encoding", "identity")
-	injectedWriter := &InjectedWriter{
+func CreateInjectedWriter(
+	w http.ResponseWriter, r *http.Request, m *Middleware,
+) *InjectedWriter {
+	iw := &InjectedWriter{
 		OriginalWriter: w,
 		Request:        r,
 		RecordedHTML:   bytes.Buffer{},
-		Logger:         m.logger,
-		M:              &m,
+		Logger:         m.Logger,
+		M:              m,
 	}
 	if len(m.ContentType) == 0 {
-		injectedWriter.contentTypeStatus = matches
+		iw.contentTypeStatus = matches
 	}
+	return iw
+}
+
+// ServeHTTP implements caddyhttp.MiddlewareHandler.
+func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	r.Header.Set("Accept-Encoding", "identity")
+	injectedWriter := CreateInjectedWriter(w, r, &m)
 	err := next.ServeHTTP(injectedWriter, r)
 	if err != nil {
 		return err
@@ -195,7 +202,7 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 	if err := injectedWriter.flush(); err != nil {
 		return err
 	}
-	m.logger.Debug("", zap.Int("total bytes written", injectedWriter.totalBytesWritten))
+	m.Logger.Debug("", zap.Int("total bytes written", injectedWriter.totalBytesWritten))
 	return nil
 }
 
