@@ -177,30 +177,40 @@ func (i *InjectedWriter) HandleCSP() error {
 		defaultSrc := extractValueForDirective(csp, "default-src")
 		if len(defaultSrc) == 0 {
 			defaultSrc = "'self' https: 'unsafe-eval' 'unsafe-inline' 'unsafe-hashes'"
-			csp = fmt.Sprintf("default-src %s", defaultSrc)
+			csp = fmt.Sprintf("default-src %s; %s", defaultSrc, csp)
 		}
 		cspSrcArg := fmt.Sprintf("'nonce-%s'", i.cspNonce)
-		if !strings.Contains(
-			extractValueForDirective(csp, "script-src") + defaultSrc,
-			"'unsafe-inline'",
-		) {
-			if strings.Contains(csp, "script-src ") {
+		if strings.Contains(csp, "script-src ") {
+			if !strings.Contains(
+				extractValueForDirective(csp, "script-src"),
+				"'unsafe-inline'",
+			) {
 				// we need to add a source instead of adding the entire directive
 				csp = strings.Replace(csp, "script-src ", fmt.Sprintf("script-src %s ", cspSrcArg), 1)
-			} else {
-				csp += fmt.Sprintf("; script-src %s %s", defaultSrc, cspSrcArg)
 			}
+		} else {
+			cspSrcArgFinal := cspSrcArg
+			if strings.Contains(defaultSrc, "'unsafe-inline'") {
+				// Skip nonce if unsafe-inline otherwise it will be disabled
+				cspSrcArgFinal = ""
+			}
+			csp += fmt.Sprintf("; script-src %s %s", defaultSrc, cspSrcArgFinal)
 		}
-		if !strings.Contains(
-			extractValueForDirective(csp, "style-src") + defaultSrc,
-			"'unsafe-inline'",
-		) {
-			if strings.Contains(csp, "style-src ") {
+		if strings.Contains(csp, "style-src ") {
+			if !strings.Contains(
+				extractValueForDirective(csp, "style-src"),
+				"'unsafe-inline'",
+			) {
 				// we need to add a source instead of adding the entire directive
 				csp = strings.Replace(csp, "style-src ", fmt.Sprintf("style-src %s ", cspSrcArg), 1)
-			} else {
-				csp += fmt.Sprintf("; style-src %s %s", defaultSrc, cspSrcArg)
 			}
+		} else {
+			cspSrcArgFinal := cspSrcArg
+			if strings.Contains(defaultSrc, "'unsafe-inline'") {
+				// Skip nonce if unsafe-inline otherwise it will be disabled
+				cspSrcArgFinal = ""
+			}
+			csp += fmt.Sprintf("; style-src %s %s", defaultSrc, cspSrcArgFinal)
 		}
 		i.OriginalWriter.Header().Set("Content-Security-Policy", csp)
 	}
