@@ -251,6 +251,7 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 		i.hasSeenClosingHead = true
 		return line
 	}
+	lineToReturn := line
 	if httpEquivIndex >= len(metaTag) {
 		i.Logger.Debug("Found CSP in HTML, replacing it")
 		fullTagToEnd := line[httpEquivIndex:]
@@ -272,16 +273,16 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 
 		fullContentAttrStartIndex := strings.Index(fullTag, contentPrefix)
 		if fullContentAttrStartIndex == -1 {
-			return line
+			goto end
 		}
 		contentAttrToEnd := fullTag[fullContentAttrStartIndex+len(contentPrefix):]
 		contentAttrEndIndex := strings.Index(contentAttrToEnd, "\"")
 		if contentAttrEndIndex == -1 {
-			return line
+			goto end
 		}
 		contentAttrValue := contentAttrToEnd[:contentAttrEndIndex]
 		if len(contentAttrValue) == 0 {
-			return line
+			goto end
 		}
 		if strings.Contains(contentAttrValue, "default-src") {
 			// Otherwise we could run into issues.
@@ -290,18 +291,22 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 			goodCsp := i.transformCSP(contentAttrValue)
 			newTag := fmt.Sprintf("http-equiv=\"content-security-policy\" content=\"%s\" ", goodCsp)
 			i.Logger.Debug("Replaced CSP in HTML")
-			return strings.Replace(line, fullTag, newTag, 1)
+			lineToReturn = strings.Replace(line, fullTag, newTag, 1)
+			goto end
 		} else {
 			fullTagEndToEnd :=
 			 	line[strings.LastIndex(line[:httpEquivIndex], metaTag):endIndex+endSuffixLen-1+len(httpEquivPrefix)-1]
-			return strings.Replace(line, fullTagEndToEnd, "", 1)
+			lineToReturn = strings.Replace(line, fullTagEndToEnd, "", 1)
+			i.Logger.Debug("Removing CSP entirely")
+			goto end
 		}
 
 	}
+end:
 	if closingHeadIndex != -1 {
 		i.hasSeenClosingHead = true
 	}
-	return line
+	return lineToReturn
 }
 
 func (i *InjectedWriter) Flush() error {
