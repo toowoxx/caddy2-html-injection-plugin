@@ -179,7 +179,7 @@ func (i *InjectedWriter) HandleCSP() error {
 			defaultSrc = "'self' https: 'unsafe-eval' 'unsafe-inline' 'unsafe-hashes'"
 			csp = fmt.Sprintf("default-src %s; %s", defaultSrc, csp)
 		}
-		cspSrcArg := fmt.Sprintf("'nonce-%s'", i.cspNonce)
+		cspSrcArg := fmt.Sprintf("'nonce-%s' 'unsafe-inline'", i.cspNonce)
 		if strings.Contains(csp, "script-src ") {
 			if !strings.Contains(
 				extractValueForDirective(csp, "script-src"),
