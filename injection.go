@@ -68,7 +68,7 @@ const (
 )
 
 type LineHandler interface {
-	handleLine(line string) (string, error)
+	HandleLine(line string) (string, error)
 }
 
 type InjectedWriter struct {
@@ -113,7 +113,7 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 				i.RecordedHTML.WriteString(line)
 				break
 			}
-			newString, err := i.LineHandler.handleLine(line)
+			newString, err := i.LineHandler.HandleLine(line)
 			if err != nil {
 				return 0, err
 			}
@@ -142,7 +142,7 @@ func (i *InjectedWriter) textToInject() (string, error) {
 	return contentString, nil
 }
 
-func (i *InjectedWriter) handleLine(line string) (string, error) {
+func (i *InjectedWriter) HandleLine(line string) (string, error) {
 	if strings.Contains(line, i.M.Before) {
 		textToInject, err := i.textToInject()
 		if err != nil {
@@ -157,7 +157,7 @@ func (i *InjectedWriter) flush() error {
 	var err error
 	finalString := i.RecordedHTML.String()
 	if len(finalString) > 0 {
-		finalString, err = i.handleLine(finalString)
+		finalString, err = i.HandleLine(finalString)
 		if err != nil {
 			return err
 		}
