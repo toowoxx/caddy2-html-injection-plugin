@@ -153,7 +153,7 @@ func (i *InjectedWriter) HandleLine(line string) (string, error) {
 	return line, nil
 }
 
-func (i *InjectedWriter) flush() error {
+func (i *InjectedWriter) Flush() error {
 	var err error
 	finalString := i.RecordedHTML.String()
 	if len(finalString) > 0 {
@@ -199,7 +199,7 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 	if err != nil {
 		return err
 	}
-	if err := injectedWriter.flush(); err != nil {
+	if err := injectedWriter.Flush(); err != nil {
 		return err
 	}
 	m.Logger.Debug("", zap.Int("total bytes written", injectedWriter.totalBytesWritten))
