@@ -67,6 +67,10 @@ const (
 	matches
 )
 
+type LineHandler interface {
+	handleLine(line string) (string, error)
+}
+
 type InjectedWriter struct {
 	originalWriter    http.ResponseWriter
 	request           *http.Request
@@ -74,6 +78,7 @@ type InjectedWriter struct {
 	totalBytesWritten int
 	logger            *zap.Logger
 	contentTypeStatus ContentTypeStatus
+	lineHandler		  LineHandler
 	m                 *Middleware
 }
 
@@ -82,6 +87,9 @@ func (i InjectedWriter) Header() http.Header {
 }
 
 func (i *InjectedWriter) Write(bytes []byte) (int, error) {
+	if i.lineHandler == nil {
+		i.lineHandler = i
+	}
 	if i.contentTypeStatus == noMatch {
 		return i.originalWriter.Write(bytes)
 	} else if i.contentTypeStatus == toBeChecked && !i.m.compiledContentTypeRegex.MatchString(
@@ -105,7 +113,7 @@ func (i *InjectedWriter) Write(bytes []byte) (int, error) {
 				i.recordedHtml.WriteString(line)
 				break
 			}
-			newString, err := i.handleLine(line)
+			newString, err := i.lineHandler.handleLine(line)
 			if err != nil {
 				return 0, err
 			}
