@@ -173,7 +173,7 @@ func (i *InjectedWriter) HandleCSP() error {
 func (i *InjectedWriter) HandleCSPForText(line string) string {
 	if len(i.cspNonce) == 0 {
 		// Remove nonce attributes since CSP is not active
-		return strings.ReplaceAll(line, "nonce=\"{{csp-nonce}}\"", "")
+		return strings.ReplaceAll(line, " nonce=\"{{csp-nonce}}\"", "")
 	}
 	return strings.ReplaceAll(line, "{{csp-nonce}}", i.cspNonce)
 }
@@ -195,7 +195,9 @@ func (i *InjectedWriter) Flush() error {
 	return nil
 }
 
-func (i InjectedWriter) WriteHeader(statusCode int) {
+func (i *InjectedWriter) WriteHeader(statusCode int) {
+	// Ignore error because it's not critical
+	_ = i.HandleCSP()
 	i.OriginalWriter.Header().Del("Content-Length")
 	i.OriginalWriter.WriteHeader(statusCode)
 }
@@ -222,11 +224,6 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 
 	r.Header.Set("Accept-Encoding", "identity")
 	injectedWriter := CreateInjectedWriter(w, r, &m)
-	err = injectedWriter.HandleCSP()
-	if err != nil {
-		// Skip injection to ensure availability
-		return next.ServeHTTP(w, r)
-	}
 
 	err = next.ServeHTTP(injectedWriter, r)
 	if err != nil {
