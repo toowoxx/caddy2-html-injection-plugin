@@ -177,27 +177,27 @@ func (i *InjectedWriter) HandleCSP() error {
 			csp = fmt.Sprintf("default-src %s", defaultSrc)
 		}
 		cspSrcArg := fmt.Sprintf("'nonce-%s'", i.cspNonce)
-		if strings.Contains(csp, "script-src ") {
-			if !strings.Contains(
-				extractValueForDirective(csp, "script-src"),
-				"'unsafe-inline'",
-			) {
+		if !strings.Contains(
+			extractValueForDirective(csp, "script-src"),
+			"'unsafe-inline'",
+		) {
+			if strings.Contains(csp, "script-src ") {
 				// we need to add a source instead of adding the entire directive
 				csp = strings.Replace(csp, "script-src ", fmt.Sprintf("script-src %s ", cspSrcArg), 1)
+			} else {
+				csp += fmt.Sprintf("; script-src %s %s", defaultSrc, cspSrcArg)
 			}
-		} else {
-			csp += fmt.Sprintf("; script-src %s %s", defaultSrc, cspSrcArg)
 		}
-		if strings.Contains(csp, "style-src ") {
-			if !strings.Contains(
-				extractValueForDirective(csp, "style-src"),
-				"'unsafe-inline'",
-			) {
+		if !strings.Contains(
+			extractValueForDirective(csp, "style-src"),
+			"'unsafe-inline'",
+		) {
+			if strings.Contains(csp, "style-src ") {
 				// we need to add a source instead of adding the entire directive
 				csp = strings.Replace(csp, "style-src ", fmt.Sprintf("style-src %s ", cspSrcArg), 1)
+			} else {
+				csp += fmt.Sprintf("; style-src %s %s", defaultSrc, cspSrcArg)
 			}
-		} else {
-			csp += fmt.Sprintf("; style-src %s %s", defaultSrc, cspSrcArg)
 		}
 		i.OriginalWriter.Header().Set("Content-Security-Policy", csp)
 	}
