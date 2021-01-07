@@ -209,7 +209,7 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 // UnmarshalCaddyfile implements caddyfile.Unmarshaler.
 func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	if !d.Next() {
-		return d.Err("expected token following filter")
+		return d.Err("expected token following injection")
 	}
 	for d.NextBlock(0) {
 		key := d.Val()
@@ -226,7 +226,7 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		case "before":
 			m.Before = value
 		default:
-			return d.Err(fmt.Sprintf("invalid key for filter directive: %s", key))
+			return d.Err(fmt.Sprintf("invalid key for injection directive: %s", key))
 		}
 	}
 	return nil
