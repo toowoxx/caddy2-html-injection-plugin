@@ -79,6 +79,7 @@ type InjectedWriter struct {
 	Logger            *zap.Logger
 	contentTypeStatus ContentTypeStatus
 	LineHandler       LineHandler
+	cspNonce		  string
 	M                 *Middleware
 }
 
@@ -145,12 +146,36 @@ func (i *InjectedWriter) textToInject() (string, error) {
 func (i *InjectedWriter) HandleLine(line string) (string, error) {
 	if strings.Contains(line, i.M.Before) {
 		textToInject, err := i.textToInject()
+		textToInject = i.HandleCSPForText(textToInject)
 		if err != nil {
 			return line, nil
 		}
 		return strings.Replace(line, i.M.Before, textToInject+i.M.Before, 1), nil
 	}
 	return line, nil
+}
+
+func (i *InjectedWriter) HandleCSP() error {
+	csp := i.OriginalWriter.Header().Get("Content-Security-Policy")
+	if len(csp) != 0 {
+		var err error
+		i.cspNonce, err = GenerateRandomStringURLSafe(6)
+		if err != nil {
+			return err
+		}
+		csp += fmt.Sprintf("; script-src 'nonce-%s'", i.cspNonce)
+		i.OriginalWriter.Header().Set("Content-Security-Policy", csp)
+	}
+
+	return nil
+}
+
+func (i *InjectedWriter) HandleCSPForText(line string) string {
+	if len(i.cspNonce) == 0 {
+		// Remove nonce attributes since CSP is not active
+		return strings.ReplaceAll(line, "nonce=\"{{csp-nonce}}\"", "")
+	}
+	return strings.ReplaceAll(line, "{{csp-nonce}}", i.cspNonce)
 }
 
 func (i *InjectedWriter) Flush() error {
@@ -193,9 +218,17 @@ func CreateInjectedWriter(
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	var err error
+
 	r.Header.Set("Accept-Encoding", "identity")
 	injectedWriter := CreateInjectedWriter(w, r, &m)
-	err := next.ServeHTTP(injectedWriter, r)
+	err = injectedWriter.HandleCSP()
+	if err != nil {
+		// Skip injection to ensure availability
+		return next.ServeHTTP(w, r)
+	}
+
+	err = next.ServeHTTP(injectedWriter, r)
 	if err != nil {
 		return err
 	}
