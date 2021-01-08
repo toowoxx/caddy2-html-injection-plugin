@@ -186,7 +186,7 @@ func (i *InjectedWriter) transformCSP(csp string) string {
 	if len(defaultSrc) == 0 {
 		// add back 'unsafe-hashes' when appropriate
 		defaultSrc = "'self' https: data: blob: 'unsafe-eval' 'unsafe-inline'"
-		csp = fmt.Sprintf("default-src %s; %s", defaultSrc, csp)
+		//csp = fmt.Sprintf("default-src %s; %s", defaultSrc, csp)
 	}
 	cspSrcArg := fmt.Sprintf("'nonce-%s' 'unsafe-inline'", i.cspNonce)
 	if strings.Contains(csp, "script-src ") {
