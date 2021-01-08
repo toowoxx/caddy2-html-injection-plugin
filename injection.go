@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"regexp"
 	"strings"
@@ -232,6 +233,21 @@ func (i *InjectedWriter) HandleCSPForText(text string) string {
 	return strings.ReplaceAll(text, "{{csp-nonce}}", i.cspNonce)
 }
 
+func nonNegativeMin(is ...int) int {
+	min := math.MaxInt32
+	found := false
+	for _, i := range is {
+		if min > i && i != -1 {
+			min = i
+			found = true
+		}
+	}
+	if !found {
+		return -1
+	}
+	return min
+}
+
 const metaTag = "<meta "
 const httpEquivPrefix = "http-equiv=\""
 const metaCSPPrefix = httpEquivPrefix+"content-security-policy\""
@@ -255,20 +271,24 @@ func (i *InjectedWriter) handleCSPForLine(line string) string {
 	if httpEquivIndex >= len(metaTag) {
 		i.Logger.Debug("Found CSP in HTML, replacing it")
 		fullTagToEnd := line[httpEquivIndex:]
-		endIndex := strings.Index(fullTagToEnd, "/>")
-		endSuffixLen := 2
-		if endIndex == -1 {
-			endIndex = strings.Index(fullTagToEnd, metaEnd)
+		endIndex := -1
+		endSuffixLen := 2 // />
+
+		endIndexSlashClose := strings.Index(fullTagToEnd, "/>")
+		endIndexMetaEnd := strings.Index(fullTagToEnd, metaEnd)
+		endIndexGtImplClose := strings.Index(fullTagToEnd, ">")
+
+		endIndex = nonNegativeMin(endIndexSlashClose, endIndexMetaEnd, endIndexGtImplClose)
+		switch endIndex {
+		default: fallthrough
+		case -1:
+			return line
+		case endIndexMetaEnd:
 			endSuffixLen = len(metaEnd)
-			if endIndex == -1 {
-				endIndex = strings.Index(fullTagToEnd, ">")
-				endSuffixLen = 1
-				if endIndex == -1 {
-					endIndex = len(fullTagToEnd)-1
-					endSuffixLen = 0
-				}
-			}
+		case endIndexGtImplClose:
+			endSuffixLen = 1 // >
 		}
+
 		fullTag := fullTagToEnd[:endIndex]
 
 		fullContentAttrStartIndex := strings.Index(fullTag, contentPrefix)
