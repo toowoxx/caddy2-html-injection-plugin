@@ -347,6 +347,10 @@ func (i *InjectedWriter) Flush() error {
 }
 
 func (i *InjectedWriter) WriteHeader(statusCode int) {
+	if statusCode < http.StatusOK || statusCode >= 600 || i.M.ShouldBypassForResponse(i.OriginalWriter) {
+		i.OriginalWriter.WriteHeader(statusCode)
+		return
+	}
 	// Ignore error because it's not critical
 	_ = i.HandleCSP()
 	i.OriginalWriter.Header().Del("Content-Length")
@@ -369,8 +373,25 @@ func CreateInjectedWriter(
 	return iw
 }
 
+func (m Middleware) IsWebSocket(r *http.Request) bool {
+	return strings.EqualFold(r.Header.Get("connection"), "upgrade") &&
+		strings.EqualFold(r.Header.Get("upgrade"), "websocket")
+}
+
+func (m Middleware) ShouldBypassForRequest(w http.ResponseWriter, r *http.Request) bool {
+	return m.IsWebSocket(r)
+}
+
+func (m Middleware) ShouldBypassForResponse(w http.ResponseWriter) bool {
+	return len(w.Header().Get("upgrade")) > 0
+}
+
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	if m.ShouldBypassForRequest(w, r) {
+		return next.ServeHTTP(w ,r)
+	}
+
 	var err error
 
 	r.Header.Set("Accept-Encoding", "identity")
