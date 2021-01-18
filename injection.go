@@ -348,6 +348,7 @@ func (i *InjectedWriter) Flush() error {
 
 func (i *InjectedWriter) WriteHeader(statusCode int) {
 	if statusCode < http.StatusOK || statusCode >= 600 || i.M.ShouldBypassForResponse(i.OriginalWriter) {
+		i.Logger.Debug("This request is not eligible to be modified, passing thru.")
 		i.OriginalWriter.WriteHeader(statusCode)
 		return
 	}
@@ -379,7 +380,9 @@ func (m Middleware) IsWebSocket(r *http.Request) bool {
 }
 
 func (m Middleware) ShouldBypassForRequest(w http.ResponseWriter, r *http.Request) bool {
-	return m.IsWebSocket(r)
+	isWebsocket := m.IsWebSocket(r)
+	m.Logger.Debug("This is a websocket, passing thru.")
+	return isWebsocket
 }
 
 func (m Middleware) ShouldBypassForResponse(w http.ResponseWriter) bool {
@@ -389,6 +392,7 @@ func (m Middleware) ShouldBypassForResponse(w http.ResponseWriter) bool {
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if m.ShouldBypassForRequest(w, r) {
+		m.Logger.Debug("This request is going to pass thru.")
 		return next.ServeHTTP(w ,r)
 	}
 

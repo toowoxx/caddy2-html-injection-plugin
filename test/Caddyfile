@@ -6,11 +6,19 @@
 http://localhost:2015 {
     #header Content-Security-Policy "default-src https:; script-src 'unsafe-inline'; object-src 'none'"
     header Content-Security-Policy "frame-ancestors 'self'; script-src 'self' example.com"
+
     injection {
         content_type .*/html
         inject test/inject.js
         before "</body>"
     }
+
     root * test/
     file_server
+
+    handle /proxied/* {
+        uri strip_prefix /proxied
+        reverse_proxy /* :2016
+    }
 }
+
