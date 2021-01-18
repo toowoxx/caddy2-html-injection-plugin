@@ -375,8 +375,32 @@ func CreateInjectedWriter(
 }
 
 func (m Middleware) IsWebSocket(r *http.Request) bool {
-	return strings.EqualFold(r.Header.Get("connection"), "upgrade") &&
-		strings.EqualFold(r.Header.Get("upgrade"), "websocket")
+	connectionValue := r.Header.Get("connection")
+	connectionValues := strings.Split(connectionValue, ",")
+	connectionValueMatches := false
+	for _, connectionElem := range connectionValues {
+		if strings.EqualFold(strings.TrimSpace(connectionElem), "upgrade") {
+			connectionValueMatches = true
+			break
+		}
+	}
+	if !connectionValueMatches {
+		return false
+	}
+
+	upgradeValue := r.Header.Get("upgrade")
+	upgradeValues := strings.Split(upgradeValue, ",")
+	upgradeValueMatches := false
+	for _, upgradeElem := range upgradeValues {
+		if strings.EqualFold(strings.TrimSpace(upgradeElem), "websocket") {
+			upgradeValueMatches = true
+		}
+	}
+	if !upgradeValueMatches {
+		return false
+	}
+
+	return true
 }
 
 func (m Middleware) ShouldBypassForRequest(w http.ResponseWriter, r *http.Request) bool {
