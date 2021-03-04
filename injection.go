@@ -3,9 +3,9 @@ package injection
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -139,7 +139,7 @@ func (i *InjectedWriter) textToInject() (string, error) {
 	if len(i.M.Inject) == 0 {
 		return "", nil
 	}
-	content, err := ioutil.ReadFile(i.M.Inject)
+	content, err := os.ReadFile(i.M.Inject)
 	if err != nil {
 		i.Logger.Warn("Could not read file to inject!", zap.Error(err))
 		return "", err

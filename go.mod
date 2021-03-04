@@ -1,6 +1,6 @@
 module git.toowoxx.de/foss/go/caddy2-html-injection-plugin
 
-go 1.15
+go 1.16
 
 require (
 	cloud.google.com/go v0.70.0 // indirect
