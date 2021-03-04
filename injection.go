@@ -404,9 +404,11 @@ func (m Middleware) IsWebSocket(r *http.Request) bool {
 }
 
 func (m Middleware) ShouldBypassForRequest(w http.ResponseWriter, r *http.Request) bool {
-	isWebsocket := m.IsWebSocket(r)
-	m.Logger.Debug("This is a websocket, passing thru.")
-	return isWebsocket
+	if m.IsWebSocket(r) {
+		m.Logger.Debug("This is a websocket, passing thru.")
+		return true
+	}
+	return false
 }
 
 func (m Middleware) ShouldBypassForResponse(w http.ResponseWriter) bool {
