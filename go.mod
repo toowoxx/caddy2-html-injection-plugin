@@ -1,4 +1,4 @@
-module git.toowoxx.de/foss/go/caddy2-html-injection-plugin
+module github.com/toowoxx/caddy2-html-injection-plugin
 
 go 1.16
 
