@@ -1,9 +1,9 @@
-# caddy2-filter (modified for injection)
+# caddy2-html-injection-plugin
 
-[![GoDoc](http://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/gopkg.in/sjtug/caddy2-filter)
-[![Go Report Card](https://goreportcard.com/badge/github.com/sjtug/caddy2-filter)](https://goreportcard.com/report/github.com/sjtug/caddy2-filter)
+[![GoDoc](http://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/toowoxx/caddy2-html-injection-plugin)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toowoxx/caddy2-html-injection-plugin)](https://goreportcard.com/report/github.com/toowoxx/caddy2-html-injection-plugin)
 
-Replace text in HTTP response based on regex. Similar to [http.filter](https://caddyserver.com/v1/docs/http.filter) in Caddy 1.
+Inject arbitrary text into HTML. Similar to [http.filter](https://caddyserver.com/v1/docs/http.filter) in Caddy 1.
 
 Originally released on https://github.com/sjtug/caddy2-filter
 
