@@ -5,13 +5,12 @@ go 1.16
 require (
 	cloud.google.com/go v0.70.0 // indirect
 	github.com/antlr/antlr4 v0.0.0-20210304020514-0f8bddcbc14b // indirect
-	github.com/caddyserver/caddy/v2 v2.3.0
+	github.com/caddyserver/caddy/v2 v2.4.1
 	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.2 // indirect
 	github.com/golang/snappy v0.0.2 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
-	github.com/klauspost/cpuid v1.3.1 // indirect
 	github.com/manifoldco/promptui v0.8.0 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/miekg/dns v1.1.35 // indirect
