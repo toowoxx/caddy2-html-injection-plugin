@@ -1,24 +1,24 @@
 {
-    debug
-    order injection first
+	debug
+	admin off
+	order injection first
 }
 
 http://localhost:2015 {
-    #header Content-Security-Policy "default-src https:; script-src 'unsafe-inline'; object-src 'none'"
-    header Content-Security-Policy "frame-ancestors 'self'; script-src 'self' example.com"
+	#header Content-Security-Policy "default-src https:; script-src 'unsafe-inline'; object-src 'none'"
+	header Content-Security-Policy "frame-ancestors 'self'; script-src 'self' example.com"
 
-    injection {
-        content_type .*/html
-        inject test/inject.js
-        before "</body>"
-    }
+	injection {
+		content_type .*/html
+		inject test/inject.js
+		before "</body>"
+	}
 
-    root * test/
-    file_server
+	root * test/
+	file_server
 
-    handle /proxied/* {
-        uri strip_prefix /proxied
-        reverse_proxy /* :2016
-    }
+	handle /proxied/* {
+		uri strip_prefix /proxied
+		reverse_proxy /* :2016
+	}
 }
-
